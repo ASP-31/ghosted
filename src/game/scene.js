@@ -57,14 +57,22 @@ export function createScene() {
   // Walls
   const wallColor = 0x2a2825;
   box([0, H / 2, -hd], [W, H, 0.1], wallColor);
-  box([0, H / 2, hd], [W, H, 0.1], wallColor);
   box([-hw, H / 2, 0], [0.1, H, D], wallColor);
   box([hw, H / 2, 0], [0.1, H, D], wallColor);
+
+  // Front Wall with open doorway at doorX = 0.9, width = 0.82
+  const doorW = 0.82;
+  const doorX = 0.9;
+  const doorZ = hd - 0.05;
+  box([-0.705, H / 2, hd], [2.39, H, 0.1], wallColor);
+  box([1.605, H / 2, hd], [0.59, H, 0.1], wallColor);
+  box([doorX, 2.3, hd], [doorW, 0.4, 0.1], wallColor);
 
   // Skirting (subtle)
   const skirt = 0x15151b;
   box([0, 0.05, -hd + 0.02], [W, 0.1, 0.06], skirt, false);
-  box([0, 0.05, hd - 0.02], [W, 0.1, 0.06], skirt, false);
+  box([-0.705, 0.05, hd - 0.02], [2.39, 0.1, 0.06], skirt, false);
+  box([1.605, 0.05, hd - 0.02], [0.59, 0.1, 0.06], skirt, false);
 
   // Window on left wall
   const winX = -hw + 0.06;
@@ -94,9 +102,6 @@ export function createScene() {
   box([winX + 0.08, 0.95, winZ], [0.16, 0.06, winW + 0.2], 0x1a1a20, false);
 
   // Door on front wall
-  const doorX = 0.9;
-  const doorZ = hd - 0.05;
-  const doorW = 0.82;
   // Door panel - pivot on hinge (left side: doorX - doorW / 2)
   const doorGeo = new THREE.BoxGeometry(doorW, 2.05, 0.08);
   doorGeo.translate(doorW / 2, 0, 0);
@@ -255,6 +260,7 @@ export function createScene() {
   deskLight.shadow.bias = -0.0005;
   scene.add(deskLight);
 
+
   // Entrance / Door Light
   box([doorX, 2.45, doorZ - 0.25], [0.14, 0.03, 0.14], 0x222228, false);
   const doorBulb = new THREE.Mesh(
@@ -290,13 +296,128 @@ export function createScene() {
   scene.add(moon);
   scene.add(moon.target);
 
+  // Door Collider (blocks doorway while door is closed)
+  const doorCollider = new THREE.Box3().setFromCenterAndSize(
+    new THREE.Vector3(doorX, 1.05, doorZ),
+    new THREE.Vector3(doorW, 2.05, 0.2)
+  );
+  colliders.push(doorCollider);
+
+  // --- EXTENDED HALLWAY & ACCIDENT RECONSTRUCTION ---
+  const hallLen = 6.0;
+  const hallW = 1.3;
+  const hallZStart = hd;
+  const hallZEnd = hallZStart + hallLen;
+  const hallZMid = hallZStart + hallLen / 2;
+
+  // Hallway Floor & Ceiling
+  box([doorX, -0.02, hallZMid], [hallW, 0.04, hallLen], 0x141416, false, { roughness: 0.9 });
+  box([doorX, H, hallZMid], [hallW, 0.04, hallLen], 0x0a0a0f, false);
+
+  // Hallway Left Wall & Right Wall & End Wall
+  box([doorX - hallW / 2 - 0.05, H / 2, hallZMid], [0.1, H, hallLen], 0x1c1b19, true);
+  box([doorX + hallW / 2 + 0.05, H / 2, hallZMid], [0.1, H, hallLen], 0x1c1b19, true);
+  box([doorX, H / 2, hallZEnd + 0.05], [hallW + 0.2, H, 0.1], 0x151518, true);
+
+  // Tyre Skid Marks on Hallway Floor
+  box([doorX - 0.28, 0.002, hallZMid + 0.3], [0.1, 0.001, hallLen * 0.75], 0x050505, false, { roughness: 1 });
+  box([doorX + 0.28, 0.002, hallZMid + 0.3], [0.1, 0.001, hallLen * 0.75], 0x050505, false, { roughness: 1 });
+
+  // Blood Pools & Trail
+  box([doorX + 0.12, 0.004, hallZEnd - 1.2], [0.75, 0.001, 1.2], 0x3b0000, false, { roughness: 0.15, metalness: 0.3 });
+  box([doorX - 0.05, 0.005, hallZEnd - 1.6], [0.45, 0.001, 0.6], 0x480000, false, { roughness: 0.1, metalness: 0.4 });
+  box([doorX + 0.05, 0.003, hallZMid - 0.2], [0.18, 0.001, 1.8], 0x330000, false, { roughness: 0.2, metalness: 0.2 });
+  box([doorX - 0.1, 0.003, hallZStart + 1.2], [0.12, 0.001, 1.4], 0x2b0000, false, { roughness: 0.2 });
+
+  // Shattered Glass Shards along the Hallway
+  for (let i = 0; i < 16; i++) {
+    const gx = doorX + (Math.sin(i * 1.7) * 0.45);
+    const gz = hallZStart + 1.5 + (i * 0.25);
+    box([gx, 0.005, gz], [0.035, 0.004, 0.035], 0x99ccff, false, {
+      roughness: 0.1,
+      metalness: 0.9,
+      emissive: 0x112233,
+      emissiveIntensity: 0.2
+    });
+  }
+
+  // Wreckage Debris at End of Hallway
+  box([doorX - 0.15, 0.35, hallZEnd - 0.4], [0.85, 0.5, 0.4], 0x1a2228, true, { roughness: 0.5, metalness: 0.7, rotation: [0.1, -0.2, 0.15] });
+  box([doorX + 0.25, 0.2, hallZEnd - 0.3], [0.4, 0.35, 0.3], 0x111111, false, { metalness: 0.8, roughness: 0.4, rotation: [-0.15, 0.3, 0] });
+
+  // Hallway Dim Overhead Light
+  const hallLight = new THREE.PointLight(0x7a8fa8, 0.8, 6.0, 2);
+  hallLight.position.set(doorX, 2.3, hallZMid);
+  scene.add(hallLight);
+
+  // Blinding Accident Headlights
+  const headlightL = new THREE.SpotLight(0xfffaed, 0, 12, Math.PI / 5, 0.4);
+  headlightL.position.set(doorX - 0.3, 0.45, hallZEnd - 0.2);
+  headlightL.target.position.set(doorX - 0.2, 0.45, hallZStart);
+  scene.add(headlightL);
+  scene.add(headlightL.target);
+
+  const headlightR = new THREE.SpotLight(0xfffaed, 0, 12, Math.PI / 5, 0.4);
+  headlightR.position.set(doorX + 0.3, 0.4, hallZEnd - 0.3);
+  headlightR.target.position.set(doorX + 0.2, 0.4, hallZStart);
+  scene.add(headlightR);
+  scene.add(headlightR.target);
+
+  // Shadow Ghost Apparition
+  const ghostGroup = new THREE.Group();
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x030305 });
+
+  // Torso
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.75, 0.2), ghostMat);
+  torso.position.y = 1.0;
+  ghostGroup.add(torso);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), ghostMat);
+  head.position.y = 1.5;
+  ghostGroup.add(head);
+
+  // Glowing Eye Pinpricks
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), eyeMat);
+  eyeL.position.set(-0.04, 1.52, 0.12);
+  ghostGroup.add(eyeL);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), eyeMat);
+  eyeR.position.set(0.04, 1.52, 0.12);
+  ghostGroup.add(eyeR);
+
+  // Arms
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.75, 0.08), ghostMat);
+  armL.position.set(-0.24, 0.9, 0);
+  ghostGroup.add(armL);
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.75, 0.08), ghostMat);
+  armR.position.set(0.24, 0.9, 0);
+  ghostGroup.add(armR);
+
+  // Legs
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), ghostMat);
+  legL.position.set(-0.1, 0.35, 0);
+  ghostGroup.add(legL);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), ghostMat);
+  legR.position.set(0.1, 0.35, 0);
+  ghostGroup.add(legR);
+
+  ghostGroup.position.set(doorX, 0, hd - 0.3);
+  ghostGroup.rotation.y = 0;
+  ghostGroup.visible = false;
+  scene.add(ghostGroup);
+
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  return { scene, camera, renderer, colliders, deskMain, photoGroup, doorPanel, ambient, deskLight, doorLight };
+  return {
+    scene, camera, renderer, colliders, deskMain, photoGroup, doorPanel,
+    ambient, deskLight, doorLight, doorCollider, headlightL, headlightR, hallLight,
+    ghostGroup
+  };
 }
 
 

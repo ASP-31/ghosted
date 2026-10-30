@@ -144,18 +144,21 @@ export class PhoneUI {
     await this.addMessage("I told you not to.", 'alex');
     await this.sleep(1500);
     await this.addMessage("Don't look at the door.", 'alex');
+    await this.sleep(1500);
+    await this.addMessage("Whatever you do... don't open the door.", 'alex');
 
-    // Automatically close phone after final warning
-    await this.sleep(3000);
+    // Automatically close phone after player has time to read
+    await this.sleep(4000);
     this.hide();
   }
 
-  async startFinalConversation(onChoice) {
+  async startFinalConversation(onChoice, onLookBehind) {
     if (this.closeBtn) this.closeBtn.style.display = 'none';
     await this.show('UNKNOWN');
     await this.addMessage(' You finally opened it. ', 'unknown');
     await this.sleep(1000);
     await this.addMessage('Now look behind you.', 'unknown');
+    if (onLookBehind) onLookBehind();
     await this.sleep(1500);
 
     this.showFinalChoices(onChoice);

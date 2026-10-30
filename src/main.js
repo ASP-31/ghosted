@@ -4,14 +4,24 @@ import { Player } from './game/player.js';
 import { HUD } from './ui/hud.js';
 import { InteractionManager } from './game/interaction.js';
 import { PhoneUI } from './ui/phone.js';
+import { SoundEngine } from './game/audio.js';
 
-const { scene, camera, renderer, colliders, deskMain, photoGroup, doorPanel, ambient, deskLight, doorLight } = createScene();
+const {
+  scene, camera, renderer, colliders, deskMain, photoGroup, doorPanel,
+  ambient, deskLight, doorLight, doorCollider, headlightL, headlightR, hallLight,
+  ghostGroup
+} = createScene();
 const player = new Player(camera, colliders);
 const hud = new HUD();
 const interaction = new InteractionManager(camera);
 const phone = new PhoneUI();
+const audio = new SoundEngine();
 
-let gameState = 'START'; // START -> PHOTO_EXAMINED -> UNKNOWN_CONTACTED -> PHOTO_REVEALED -> ENDING_CHOICE -> ENDING_GHOSTED / ENDING_ESCAPED
+const initAudio = () => audio.init();
+document.addEventListener('click', initAudio, { once: true });
+document.addEventListener('keydown', initAudio, { once: true });
+
+let gameState = 'START'; // START -> PHOTO_EXAMINED -> UNKNOWN_CONTACTED -> PHOTO_REVEALED -> DOOR_OPENED -> ACCIDENT_TRIGGERED -> ENDING_CHOICE -> ENDING_GHOSTED / ENDING_ESCAPED
 
 const flickerLights = async () => {
   const originalAmbient = ambient.intensity;
@@ -116,20 +126,25 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
   } else if (gameState === 'UNKNOWN_CONTACTED') {
     // VISUAL FEEDBACK: Rotate photo group to turn it over
     photoGroup.rotation.x = Math.PI;
+    audio.playWhisper();
 
     // Sequential reveal of the hidden text
     hud.showMessage("There is something written behind it.");
     await new Promise(r => setTimeout(r, 1500));
+    audio.playWhisper();
     hud.showMessage("3:13 AM");
     await new Promise(r => setTimeout(r, 1500));
     hud.showPermanentMessage("3:13 AM\nYOU WERE NEVER ALONE.");
 
     gameState = 'PHOTO_REVEALED';
     interaction.setPrompt(photoGroup, '[ E ] Examine Writing');
+    audio.startHeartbeat(650);
 
-    // Silence gap: Let the player look around
+    // Silence gap: Let the player look around — play whisper midway through
+    setTimeout(() => audio.playWhisper(), 1500);
     setTimeout(async () => {
-      // Trigger atmospheric effects
+      // Trigger violent door pounding before Alex warning
+      audio.playDoorKnock();
       flickerLights();
       highlightDoor();
 
@@ -138,6 +153,7 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
 
       // Once phone closes, crack the door open into the room
       doorPanel.rotation.y = -0.15;
+      hud.showMessage("Alex: \"Whatever you do... don't open the door.\"", 5000);
 
       // Now the door becomes the final interactable
       let doorOpening = false;
@@ -145,9 +161,10 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
         if (doorOpening) return;
         doorOpening = true;
         hud.hideMessage();
+        audio.playCreak();
 
         const start = performance.now();
-        const duration = 1200;
+        const duration = 1800;
         const initialRot = doorPanel.rotation.y;
         const targetRot = -1.4;
 
@@ -158,40 +175,17 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
           if (t < 1) {
             requestAnimationFrame(swingDoor);
           } else {
-            // Door has finished opening - remove door interaction
+            // Door fully open
             interaction.unregister(doorPanel);
+            const cIdx = colliders.indexOf(doorCollider);
+            if (cIdx > -1) colliders.splice(cIdx, 1);
 
-            // 1. Show temporary message near the bottom
-            hud.showMessage("The hallway is empty.", 2500);
-
-            // Wait approximately 2 seconds
-            setTimeout(async () => {
-              gameState = 'ENDING_CHOICE';
-
-              // 2 & 3. UNKNOWN Phone Message & Final Choice
-              await phone.startFinalConversation(async (choice) => {
-                if (choice === 'alex') {
-                  gameState = 'ENDING_GHOSTED';
-
-                  // 4. Subtle visual scare: brief room/scene flicker
-                  triggerSubtleScare();
-
-                  // Fade toward black and display first ending: GHOSTED
-                  setTimeout(() => {
-                    player.disable();
-                    interaction.interactables.clear();
-                    hud.showEnding("GHOSTED", "You should have listened.", true);
-                  }, 1200);
-                } else if (choice === 'unknown') {
-                  gameState = 'ENDING_ESCAPED';
-
-                  // 5. Fade toward black and display second ending: ESCAPED
-                  player.disable();
-                  interaction.interactables.clear();
-                  hud.showEnding("ESCAPED", "You were never supposed to remember.", false);
-                }
-              });
-            }, 2000);
+            hud.showMessage("The hallway is empty.", 2200);
+            audio.playWhisper();
+            setTimeout(() => {
+              gameState = 'DOOR_OPENED';
+              hud.showMessage("The door creaks open into the hallway...\nInvestigate.", 4000);
+            }, 2200);
           }
         }
         requestAnimationFrame(swingDoor);
@@ -214,6 +208,71 @@ document.addEventListener('keydown', async (e) => {
 function animate() {
   requestAnimationFrame(animate);
   player.update();
+
+  // Ghost twitch jitter animation when visible
+  if (ghostGroup && ghostGroup.visible) {
+    ghostGroup.position.x = 0.9 + (Math.random() - 0.5) * 0.04;
+    ghostGroup.rotation.z = (Math.random() - 0.5) * 0.07;
+  }
+
+  // Accident Scene Discovery Trigger: Walking down the corridor
+  if (gameState === 'DOOR_OPENED' && camera.position.z > 3.4) {
+    gameState = 'ACCIDENT_TRIGGERED';
+
+    // Violent crash sound & sudden blinding high-beams
+    audio.playCrashSound();
+    headlightL.intensity = 8;
+    headlightR.intensity = 8;
+    setTimeout(() => {
+      headlightL.intensity = 0;
+      headlightR.intensity = 0;
+    }, 280);
+
+    triggerSubtleScare();
+    hud.showMessage("Tyre tracks... Broken glass and blood.\nThe crash happened here.", 4000);
+
+    // After discovering the accident, UNKNOWN initiates the climax
+    setTimeout(async () => {
+      gameState = 'ENDING_CHOICE';
+
+      await phone.startFinalConversation(async (choice) => {
+        audio.stopHeartbeat();
+
+        if (choice === 'alex') {
+          gameState = 'ENDING_GHOSTED';
+
+          // Terrifying jumpscare stinger: ghost lunges forward!
+          audio.playJumpscareStinger();
+          ghostGroup.position.z += 1.8;
+          headlightL.intensity = 6;
+          headlightR.intensity = 6;
+          triggerSubtleScare();
+
+          setTimeout(() => {
+            headlightL.intensity = 0;
+            headlightR.intensity = 0;
+            player.disable();
+            interaction.interactables.clear();
+            hud.showEnding("GHOSTED", "You should have listened.", true);
+          }, 1200);
+        } else if (choice === 'unknown') {
+          gameState = 'ENDING_ESCAPED';
+
+          player.disable();
+          interaction.interactables.clear();
+          hud.showEnding("ESCAPED", "You were never supposed to remember.", false);
+        }
+      }, () => {
+        // "Now look behind you" event:
+        // Door violently SLAMS SHUT and shadow figure appears twitching!
+        audio.playDoorSlam();
+        doorPanel.rotation.y = 0;
+        ghostGroup.visible = true;
+        ghostGroup.position.set(0.9, 0, 2.2);
+        audio.startHeartbeat(360);
+      });
+    }, 3500);
+  }
 
   const target = interaction.update();
   hud.update(target);
