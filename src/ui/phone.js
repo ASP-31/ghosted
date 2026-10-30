@@ -1,0 +1,166 @@
+export class PhoneUI {
+  constructor() {
+    this.createElements();
+    this.messages = [];
+  }
+
+  createElements() {
+    // Main Phone Container
+    this.container = document.createElement('div');
+    this.container.id = 'phone-container';
+    this.container.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 300px;
+      height: 600px;
+      background: rgba(15, 15, 20, 0.95);
+      border: 4px solid #222;
+      border-radius: 30px;
+      box-shadow: 0 0 50px rgba(0,0,0,0.8);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 100;
+      font-family: 'Courier New', Courier, monospace;
+      color: white;
+    `;
+    document.body.appendChild(this.container);
+
+    // Header
+    const header = document.createElement('div');
+    header.style.cssText = `
+      padding: 20px;
+      background: #1a1a24;
+      text-align: center;
+      font-weight: bold;
+      border-bottom: 1px solid #333;
+      font-size: 18px;
+    `;
+    header.textContent = 'Alex';
+    this.container.appendChild(header);
+
+    // Message Area
+    this.messageArea = document.createElement('div');
+    this.messageArea.style.cssText = `
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    `;
+    this.container.appendChild(this.messageArea);
+
+    // Choice Area
+    this.choiceArea = document.createElement('div');
+    this.choiceArea.style.cssText = `
+      padding: 20px;
+      background: #1a1a24;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      border-top: 1px solid #333;
+    `;
+    this.container.appendChild(this.choiceArea);
+  }
+
+  async show() {
+    // Release pointer lock so player can click buttons
+    document.exitPointerLock();
+
+    this.container.style.display = 'flex';
+    this.messageArea.innerHTML = '';
+    this.choiceArea.style.display = 'none';
+
+    await this.addMessage('you still remember me?', 'alex');
+    await this.sleep(1500);
+    await this.addMessage("I've been trying to reach you.", 'alex');
+    await this.sleep(1500);
+    await this.addMessage("Don't trust whoever is in that photograph.", 'alex');
+
+    this.showChoices();
+  }
+
+  async addMessage(text, sender) {
+    const msg = document.createElement('div');
+    msg.style.cssText = `
+      max-width: 80%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.4;
+      ${sender === 'alex' ? 'align-self: flex-start; background: #333; color: #eee;' : 'align-self: flex-end; background: #4a6da7; color: white;'}
+    `;
+    msg.textContent = text;
+    this.messageArea.appendChild(msg);
+    this.messageArea.scrollTop = this.messageArea.scrollHeight;
+    return this.sleep(500); // Small delay for visual pop
+  }
+
+  showChoices() {
+    this.choiceArea.innerHTML = '';
+    this.choiceArea.style.display = 'flex';
+
+    const btn1 = this.createChoiceButton('Who is this?', () => this.handleChoice('who'));
+    const btn2 = this.createChoiceButton('Alex is dead.', () => this.handleChoice('dead'));
+
+    this.choiceArea.appendChild(btn1);
+    this.choiceArea.appendChild(btn2);
+  }
+
+  createChoiceButton(text, onClick) {
+    const btn = document.createElement('button');
+    btn.style.cssText = `
+      padding: 10px;
+      background: #2a2a3a;
+      border: 1px solid #444;
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+      border-radius: 5px;
+      transition: background 0.2s;
+    `;
+    btn.textContent = text;
+    btn.onmouseover = () => btn.style.background = '#3a3a4a';
+    btn.onmouseout = () => btn.style.background = '#2a2a3a';
+    btn.onclick = onClick;
+    return btn;
+  }
+
+  async handleChoice(choice) {
+    this.choiceArea.style.display = 'none';
+
+    if (choice === 'who') {
+      await this.addMessage('Who is this?', 'player');
+      await this.sleep(1000);
+      await this.addMessage("You know exactly who I am.", 'alex');
+      await this.sleep(1500);
+      await this.addMessage("Look at the photograph again.", 'alex');
+    } else {
+      await this.addMessage('Alex is dead.', 'player');
+      await this.sleep(1000);
+      await this.addMessage("Then why did you just hear your phone ring?", 'alex');
+      this.flicker();
+    }
+  }
+
+  flicker() {
+    const originalOpacity = this.container.style.opacity;
+    this.container.style.opacity = '0.5';
+    setTimeout(() => {
+      this.container.style.opacity = '1';
+      setTimeout(() => {
+        this.container.style.opacity = '0.7';
+        setTimeout(() => {
+          this.container.style.opacity = originalOpacity;
+        }, 50);
+      }, 50);
+    }, 50);
+  }
+
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}

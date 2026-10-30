@@ -3,7 +3,7 @@
 export function createScene() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x05070c);
-  scene.fog = new THREE.Fog(0x05070c, 5, 14);
+  scene.fog = new THREE.Fog(0x060912, 6, 15);
 
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.set(0, 1.6, 1.1);
@@ -14,7 +14,7 @@ export function createScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.9;
+  renderer.toneMappingExposure = 1.05;
   document.getElementById('app').appendChild(renderer.domElement);
 
   const colliders = [];
@@ -55,7 +55,7 @@ export function createScene() {
   scene.add(ceiling);
 
   // Walls
-  const wallColor = 0x202028;
+  const wallColor = 0x2a2825;
   box([0, H / 2, -hd], [W, H, 0.1], wallColor);
   box([0, H / 2, hd], [W, H, 0.1], wallColor);
   box([-hw, H / 2, 0], [0.1, H, D], wallColor);
@@ -70,45 +70,114 @@ export function createScene() {
   const winX = -hw + 0.06;
   const winZ = -0.7;
   const winW = 1.0, winH = 0.75;
+
+  // Window Frame
+  box([winX + 0.02, 1.35, winZ], [0.06, winH + 0.12, winW + 0.12], 0x1a1a20, false);
+
   const glass = new THREE.Mesh(
     new THREE.PlaneGeometry(winW, winH),
-    new THREE.MeshStandardMaterial({ color: 0x6f89a8, emissive: 0x1a2a40, emissiveIntensity: 0.35, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2 })
+    new THREE.MeshStandardMaterial({
+      color: 0x1a2a40,
+      emissive: 0x102030,
+      emissiveIntensity: 0.3,
+      transparent: true,
+      opacity: 0.6,
+      roughness: 0.1,
+      metalness: 0.4
+    })
   );
   glass.position.set(winX, 1.35, winZ);
   glass.rotation.y = Math.PI / 2;
   scene.add(glass);
-  // Window frame
-  box([winX + 0.02, 1.35, winZ], [0.06, winH + 0.12, winW + 0.12], 0x16161c, false);
+
   // Sill
   box([winX + 0.08, 0.95, winZ], [0.16, 0.06, winW + 0.2], 0x1a1a20, false);
 
   // Door on front wall
   const doorX = 0.9;
   const doorZ = hd - 0.05;
-  box([doorX, 1.05, doorZ], [0.82, 2.05, 0.08], 0x3a2e23, false);
-  // Door frame
-  box([doorX, 1.1, doorZ + 0.02], [0.92, 2.2, 0.04], 0x1a1612, false);
+  // Door panel - darker than wall
+  box([doorX, 1.05, doorZ], [0.82, 2.05, 0.08], 0x352b22, false, { roughness: 0.8 });
+  // Door frame (left, right, top)
+  box([doorX - 0.45, 1.1, doorZ + 0.01], [0.07, 2.2, 0.1], 0x2a231b, false);
+  box([doorX + 0.45, 1.1, doorZ + 0.01], [0.07, 2.2, 0.1], 0x2a231b, false);
+  box([doorX, 2.2, doorZ + 0.01], [0.97, 0.07, 0.1], 0x2a231b, false);
+  // Recessed door panels
+  box([doorX, 1.43, doorZ - 0.045], [0.58, 0.62, 0.015], 0x2a211a, false, { roughness: 0.8 });
+  box([doorX, 0.55, doorZ - 0.045], [0.58, 0.52, 0.015], 0x2a211a, false, { roughness: 0.8 });
   // Door handle
-  box([doorX + 0.34, 1.0, doorZ - 0.06], [0.05, 0.12, 0.08], 0x8a7a5a, false, { metalness: 0.6, roughness: 0.3 });
+  box([doorX + 0.32, 1.0, doorZ - 0.05], [0.04, 0.18, 0.06], 0x8a7a5a, false, { metalness: 0.6, roughness: 0.3 });
+  box([doorX + 0.25, 1.0, doorZ - 0.09], [0.14, 0.03, 0.03], 0xa08a64, false, { metalness: 0.7, roughness: 0.25 });
   // Hinge plates
-  box([doorX - 0.34, 1.8, doorZ - 0.06], [0.03, 0.15, 0.04], 0x555555, false, { metalness: 0.7 });
+  box([doorX - 0.37, 1.8, doorZ - 0.05], [0.03, 0.15, 0.04], 0x555555, false, { metalness: 0.7 });
+  box([doorX - 0.37, 0.4, doorZ - 0.05], [0.03, 0.15, 0.04], 0x555555, false, { metalness: 0.7 });
 
   // Bed (right/back)
   const bedX = 0.85, bedZ = -1.45;
-  box([bedX, 0.25, bedZ], [1.5, 0.5, 1.1], 0x2f2f36);
-  box([bedX, 0.55, bedZ], [1.4, 0.12, 1.0], 0x4a4a52, false, { roughness: 0.9 });
+  // Frame and legs
+  box([bedX, 0.15, bedZ], [1.52, 0.2, 1.12], 0x1e1e24);
+  box([bedX - 0.66, 0.075, bedZ - 0.48], [0.06, 0.15, 0.06], 0x14141a, false);
+  box([bedX + 0.66, 0.075, bedZ - 0.48], [0.06, 0.15, 0.06], 0x14141a, false);
+  box([bedX - 0.66, 0.075, bedZ + 0.48], [0.06, 0.15, 0.06], 0x14141a, false);
+  box([bedX + 0.66, 0.075, bedZ + 0.48], [0.06, 0.15, 0.06], 0x14141a, false);
   // Headboard
-  box([bedX, 0.7, bedZ - 0.58], [1.5, 0.9, 0.12], 0x26262e, false);
+  box([bedX, 0.5, bedZ - 0.58], [1.52, 0.7, 0.1], 0x1a1a20, false);
+  // Mattress
+  box([bedX, 0.3, bedZ], [1.4, 0.2, 1.0], 0x444450, false, { roughness: 0.95 });
   // Pillow
-  box([bedX, 0.66, bedZ - 0.32], [0.85, 0.12, 0.3], 0x7a7a82, false);
+  box([bedX, 0.45, bedZ - 0.33], [0.82, 0.1, 0.32], 0x777782, false, { roughness: 1 });
+  // Uneven blanket
+  box([bedX, 0.41, bedZ + 0.24], [1.36, 0.06, 0.56], 0x353a46, false, { rotation: [0, 0.02, 0.015], roughness: 1 });
+  box([bedX + 0.03, 0.46, bedZ + 0.02], [1.18, 0.04, 0.18], 0x3d4352, false, { rotation: [0, -0.025, 0.02], roughness: 1 });
+  box([bedX - 0.04, 0.37, bedZ + 0.52], [1.28, 0.1, 0.08], 0x2e343c, false, { rotation: [0, 0.01, -0.02], roughness: 1 });
+  // Folded sheet edge
+  box([bedX + 0.02, 0.44, bedZ - 0.18], [1.25, 0.02, 0.12], 0x5b606c, false, { rotation: [0, 0.01, 0.01], roughness: 1 });
 
   // Desk (left/back, under window side)
   const deskX = -1.45, deskZ = -0.7;
-  box([deskX, 0.375, deskZ], [0.5, 0.75, 1.0], 0x3b2f24);
+  const deskMain = box([deskX, 0.375, deskZ], [0.5, 0.75, 1.0], 0x3b2f24);
   box([deskX + 0.18, 0.78, deskZ], [0.55, 0.05, 1.05], 0x4a3a2c, false);
+
   // Desk legs accent
   box([deskX - 0.18, 0.2, deskZ - 0.42], [0.06, 0.4, 0.06], 0x2a221a, false);
   box([deskX - 0.18, 0.2, deskZ + 0.42], [0.06, 0.4, 0.06], 0x2a221a, false);
+
+  // Photograph on desk
+  const photoGroup = new THREE.Group();
+
+  // Photo base (white border)
+  const photoBase = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.002, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.8 })
+  );
+  photoGroup.add(photoBase);
+
+  // Photo content (darker area)
+  const photoContent = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 0.003, 0.13),
+    new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.6 })
+  );
+  photoContent.position.y = 0.001;
+  photoGroup.add(photoContent);
+
+  // "Scratched out" detail (small dark streaks)
+  for (let i = 0; i < 5; i++) {
+    const scratch = new THREE.Mesh(
+      new THREE.BoxGeometry(0.01, 0.004, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 })
+    );
+    scratch.position.set(
+      0.02 + Math.random() * 0.02,
+      0.002,
+      (Math.random() - 0.5) * 0.05
+    );
+    scratch.rotation.z = (Math.random() - 0.5) * 0.5;
+    photoGroup.add(scratch);
+  }
+
+  photoGroup.position.set(deskX + 0.2, 0.83, deskZ + 0.1);
+  photoGroup.rotation.set(0, 0.2, -0.1);
+  scene.add(photoGroup);
 
   // Chair
   const chairX = -0.95, chairZ = -0.95;
@@ -119,7 +188,7 @@ export function createScene() {
   box([-1.32, 0.86, -1.05], [0.2, 0.1, 0.08], 0x111111, false);
   const clockFace = new THREE.Mesh(
     new THREE.PlaneGeometry(0.16, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x77ddaa, emissiveIntensity: 0.55, roughness: 0.4 })
+    new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x77ddaa, emissiveIntensity: 0.6, roughness: 0.4 })
   );
   clockFace.position.set(-1.24, 0.86, -1.05);
   clockFace.rotation.y = Math.PI / 2;
@@ -139,26 +208,32 @@ export function createScene() {
   scene.add(shade);
   const bulb = new THREE.Mesh(
     new THREE.SphereGeometry(0.035, 12, 12),
-    new THREE.MeshStandardMaterial({ color: 0xfff0c0, emissive: 0xffc080, emissiveIntensity: 1.2 })
+    new THREE.MeshStandardMaterial({ color: 0xfff0c0, emissive: 0xffc080, emissiveIntensity: 1.35 })
   );
   bulb.position.set(lampX, 1.06, lampZ);
   scene.add(bulb);
 
   // Lights
-  const ambient = new THREE.AmbientLight(0x1a2233, 0.18);
+  const ambient = new THREE.AmbientLight(0x0a101a, 0.15);
   scene.add(ambient);
 
-  const hemi = new THREE.HemisphereLight(0x1a2233, 0x08080c, 0.08);
+  const hemi = new THREE.HemisphereLight(0x1e2a40, 0x05050a, 0.1);
   scene.add(hemi);
 
-  const deskLight = new THREE.PointLight(0xffc080, 1.2, 6, 2);
+  const deskLight = new THREE.PointLight(0xffc080, 2.2, 8, 2);
   deskLight.position.set(lampX, 1.06, lampZ);
   deskLight.castShadow = true;
   deskLight.shadow.mapSize.set(512, 512);
   deskLight.shadow.bias = -0.0005;
   scene.add(deskLight);
-
-  const moon = new THREE.DirectionalLight(0x6688cc, 0.35);
+const inspectionLight = new THREE.DirectionalLight(0xffffff, 2);
+  inspectionLight.position.set(0, 8, 0);
+  scene.add(inspectionLight);
+  const moon = new THREE.DirectionalLight(0x6688cc, 0.4);
+  const moonPoint = new THREE.PointLight(0x6688cc, 1.2, 6.0, 2);
+  moonPoint.position.set(-1.75, 1.35, -0.7);
+  moonPoint.castShadow = false;
+  scene.add(moonPoint);
   moon.position.set(-9, 11, -1);
   moon.target.position.set(0, 1, 0);
   moon.castShadow = true;
@@ -179,6 +254,16 @@ export function createScene() {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  return { scene, camera, renderer, colliders };
+  return { scene, camera, renderer, colliders, deskMain, photoGroup };
 }
+
+
+
+
+
+
+
+
+
+
 
