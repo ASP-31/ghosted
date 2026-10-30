@@ -109,6 +109,15 @@ export class PhoneUI {
     this.choiceArea.style.display = 'none';
   }
 
+  open() {
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+    const hint = document.getElementById('hint');
+    if (hint) hint.style.display = 'none';
+    this.container.style.display = 'flex';
+  }
+
   startFirstConversation() {
     return new Promise(async (resolve) => {
       this.onFirstConversationFinished = resolve;
@@ -156,11 +165,16 @@ export class PhoneUI {
     if (this.closeBtn) this.closeBtn.style.display = 'none';
     await this.show('UNKNOWN');
     await this.addMessage('You finally opened it.', 'unknown');
-    await this.sleep(400);
+    await this.sleep(500);
     await this.addMessage('Now look behind you.', 'unknown');
-    if (onLookBehind) onLookBehind();
-    await this.sleep(400);
+    await this.sleep(700);
+    this.hide();
 
+    if (onLookBehind) {
+      await onLookBehind();
+    }
+
+    this.open();
     this.showFinalChoices(onChoice);
   }
 

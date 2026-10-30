@@ -33,6 +33,8 @@ let hallwayHorrorStarted = false;
 let hallwayHorrorInterval = null;
 let whisperLoopInterval = null;
 let hallwaySteps = 0;
+let photoMovementDone = false;
+let photoLookedAway = false;
 
 const flickerLights = async () => {
   const originalAmbient = ambient.intensity;
@@ -249,6 +251,60 @@ function animate() {
     camera.position.y = baseY + sway;
   }
 
+  // ── SCARE 1: Subtle Photograph Movement ─────────────────────────
+  if (!photoMovementDone && (gameState === 'PHOTO_REVEALED' || gameState === 'DOOR_OPENED')) {
+    const toPhoto = new THREE.Vector3().subVectors(photoGroup.position, camera.position).normalize();
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    const dot = camDir.dot(toPhoto);
+
+    // Player looks away from the photograph
+    if (dot < 0.35) {
+      photoLookedAway = true;
+    }
+    // When player turns back and looks at the photograph again:
+    // Subtly rotate and shift it a few degrees. No sound. No text. Easy to miss.
+    else if (photoLookedAway && dot > 0.75) {
+      const normalPosX = photoGroup.position.x;
+      const normalPosZ = photoGroup.position.z;
+      const normalRotY = photoGroup.rotation.y;
+
+      photoGroup.rotation.y += 0.22;
+      photoGroup.position.x += 0.035;
+      photoGroup.position.z -= 0.025;
+      photoMovementDone = true;
+
+      const movedPosX = photoGroup.position.x;
+      const movedPosZ = photoGroup.position.z;
+      const movedRotY = photoGroup.rotation.y;
+
+      // Keep the moved photograph state visible for ~2 seconds, completely silent/subtle,
+      // then smoothly return to its normal position.
+      setTimeout(() => {
+        const returnStart = performance.now();
+        const returnDuration = 800; // 0.8s smooth return
+
+        function smoothReturn(time) {
+          const t = Math.min((time - returnStart) / returnDuration, 1);
+          const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+          photoGroup.position.x = movedPosX + (normalPosX - movedPosX) * ease;
+          photoGroup.position.z = movedPosZ + (normalPosZ - movedPosZ) * ease;
+          photoGroup.rotation.y = movedRotY + (normalRotY - movedRotY) * ease;
+
+          if (t < 1) {
+            requestAnimationFrame(smoothReturn);
+          } else {
+            photoGroup.position.x = normalPosX;
+            photoGroup.position.z = normalPosZ;
+            photoGroup.rotation.y = normalRotY;
+          }
+        }
+        requestAnimationFrame(smoothReturn);
+      }, 2000);
+    }
+  }
+
   // ── 3. FOOTSTEPS ────────────────────────────────────────────────
   if (footstepCooldown > 0) footstepCooldown -= 16;
   const isMoving = ['KeyW','KeyS','KeyA','KeyD'].some(k => player.keys[k]);
@@ -295,10 +351,10 @@ function animate() {
     ghostGroup.visible = true;
 
     // Headlights strobe wildly
-    const strobe = Math.random() < 0.55;
-    headlightL.intensity = strobe ? 16 : 2;
-    headlightR.intensity = strobe ? 16 : 2;
-    shakeAmount = Math.max(shakeAmount, 0.09 + Math.random() * 0.08);
+    const strobe = Math.random() < 0.45;
+    headlightL.intensity = strobe ? 14 : 2;
+    headlightR.intensity = strobe ? 14 : 2;
+    shakeAmount = Math.max(shakeAmount, 0.04 + Math.random() * 0.03);
   } else if (ghostGroup && ghostGroup.visible) {
     ghostGroup.position.x = 0.9 + (Math.random() - 0.5) * 0.04;
     ghostGroup.rotation.z = (Math.random() - 0.5) * 0.07;
@@ -308,7 +364,7 @@ function animate() {
   if (gameState === 'DOOR_OPENED' && (hallwaySteps >= 5 || camZ > 3.85)) {
     gameState = 'ACCIDENT_TRIGGERED';
     audio.stopBreathing();
-    shakeAmount = 0.14;
+    shakeAmount = 0.10;
 
     audio.playCrashSound();
     headlightL.intensity = 15;
@@ -334,9 +390,9 @@ function animate() {
           player.disable();
           interaction.interactables.clear();
 
-          // Sustained horror roar and violent camera shake:
+          // SCARE 3: FINAL PAYOFF — Loudest main jumpscare
           audio.playJumpscareStinger();
-          shakeAmount = 0.22;
+          shakeAmount = 0.10; // impactful, non-excessive camera shake
 
           // Position ghost directly in camera face:
           const dir = new THREE.Vector3();
@@ -362,15 +418,70 @@ function animate() {
           hud.showEnding("ESCAPED", "You were never supposed to remember.", false);
         }
       }, () => {
-        // "Now look behind you" event:
-        // Door slams shut and shadow figure appears right behind player
-        audio.playDoorSlam();
-        shakeAmount = 0.08;
-        doorPanel.rotation.y = 0;
-        ghostGroup.visible = true;
-        ghostGroup.position.set(0.9, 0, 2.15);
-        audio.startHeartbeat(340);
-        hud.showPermanentMessage("LOOK BEHIND YOU.");
+        // ── SCARE 2: FAKE BEHIND-YOU SCARE ────────────────────────
+        return new Promise(async (resolve) => {
+          hud.hideMessage();
+          audio.stopHeartbeat();
+          ghostGroup.visible = false;
+
+          // Brief silence, followed by very faint breathing/ambient sound
+          await new Promise(r => setTimeout(r, 600));
+          audio.startBreathing(2800);
+
+          let lookedBehind = false;
+          let triggered = false;
+
+          const finishScare = () => {
+            if (triggered) return;
+            triggered = true;
+            clearTimeout(fallback);
+
+            // Brief light flicker
+            if (hallLight) {
+              const orig = hallLight.intensity;
+              hallLight.intensity = 0.15;
+              setTimeout(() => { if (hallLight) hallLight.intensity = orig; }, 380);
+            }
+
+            // Briefly show ghost down the hallway for ~0.35s
+            ghostGroup.position.set(0.9, 0, 5.8);
+            ghostGroup.rotation.y = 0;
+            ghostGroup.visible = true;
+            audio.playWhisper(); // very faint whisper, not a huge jumpscare
+
+            setTimeout(() => {
+              ghostGroup.visible = false;
+              audio.stopBreathing();
+              setTimeout(resolve, 500); // quiet moment before phone choices appear
+            }, 380);
+          };
+
+          const checkLook = () => {
+            if (triggered) return;
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+
+            // In hallway, -Z is looking behind toward the bedroom doorway
+            if (camDir.z < -0.3) {
+              lookedBehind = true;
+              ghostGroup.visible = false; // show nothing behind them!
+            }
+
+            // Once player has looked behind, when they turn back toward the hallway (+Z)
+            if (lookedBehind && camDir.z > 0.25) {
+              finishScare();
+              return;
+            }
+
+            requestAnimationFrame(checkLook);
+          };
+
+          const fallback = setTimeout(() => {
+            finishScare();
+          }, 6000);
+
+          requestAnimationFrame(checkLook);
+        });
       });
     }, 1200);
   }
