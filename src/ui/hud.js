@@ -53,6 +53,8 @@ export class HUD {
       font-size: 20px;
       text-align: center;
       text-shadow: 2px 2px 2px black;
+      white-space: pre-line;
+      line-height: 1.5;
       pointer-events: none;
       z-index: 10;
       opacity: 0;

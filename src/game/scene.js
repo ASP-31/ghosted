@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 
 export function createScene() {
   const scene = new THREE.Scene();
@@ -96,18 +96,38 @@ export function createScene() {
   // Door on front wall
   const doorX = 0.9;
   const doorZ = hd - 0.05;
-  // Door panel - darker than wall
-  const doorPanel = box([doorX, 1.05, doorZ], [0.82, 2.05, 0.08], 0x352b22, false, { roughness: 0.8 });
+  const doorW = 0.82;
+  // Door panel - pivot on hinge (left side: doorX - doorW / 2)
+  const doorGeo = new THREE.BoxGeometry(doorW, 2.05, 0.08);
+  doorGeo.translate(doorW / 2, 0, 0);
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x352b22, roughness: 0.8 });
+  const doorPanel = new THREE.Mesh(doorGeo, doorMat);
+  doorPanel.position.set(doorX - doorW / 2, 1.05, doorZ);
+  doorPanel.castShadow = true;
+  doorPanel.receiveShadow = true;
+  scene.add(doorPanel);
+
+  function childBox(pos, size, color, opts = {}) {
+    const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, ...opts });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(pos[0], pos[1], pos[2]);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    doorPanel.add(mesh);
+    return mesh;
+  }
+
   // Door frame (left, right, top)
   box([doorX - 0.45, 1.1, doorZ + 0.01], [0.07, 2.2, 0.1], 0x2a231b, false);
   box([doorX + 0.45, 1.1, doorZ + 0.01], [0.07, 2.2, 0.1], 0x2a231b, false);
   box([doorX, 2.2, doorZ + 0.01], [0.97, 0.07, 0.1], 0x2a231b, false);
-  // Recessed door panels
-  box([doorX, 1.43, doorZ - 0.045], [0.58, 0.62, 0.015], 0x2a211a, false, { roughness: 0.8 });
-  box([doorX, 0.55, doorZ - 0.045], [0.58, 0.52, 0.015], 0x2a211a, false, { roughness: 0.8 });
-  // Door handle
-  box([doorX + 0.32, 1.0, doorZ - 0.05], [0.04, 0.18, 0.06], 0x8a7a5a, false, { metalness: 0.6, roughness: 0.3 });
-  box([doorX + 0.25, 1.0, doorZ - 0.09], [0.14, 0.03, 0.03], 0xa08a64, false, { metalness: 0.7, roughness: 0.25 });
+  // Recessed door panels (children of doorPanel)
+  childBox([0.41, 0.38, -0.045], [0.58, 0.62, 0.015], 0x2a211a, { roughness: 0.8 });
+  childBox([0.41, -0.50, -0.045], [0.58, 0.52, 0.015], 0x2a211a, { roughness: 0.8 });
+  // Door handle (children of doorPanel)
+  childBox([0.73, -0.05, -0.05], [0.04, 0.18, 0.06], 0x8a7a5a, { metalness: 0.6, roughness: 0.3 });
+  childBox([0.66, -0.05, -0.09], [0.14, 0.03, 0.03], 0xa08a64, { metalness: 0.7, roughness: 0.25 });
   // Hinge plates
   box([doorX - 0.37, 1.8, doorZ - 0.05], [0.03, 0.15, 0.04], 0x555555, false, { metalness: 0.7 });
   box([doorX - 0.37, 0.4, doorZ - 0.05], [0.03, 0.15, 0.04], 0x555555, false, { metalness: 0.7 });
@@ -234,9 +254,23 @@ export function createScene() {
   deskLight.shadow.mapSize.set(512, 512);
   deskLight.shadow.bias = -0.0005;
   scene.add(deskLight);
-const inspectionLight = new THREE.DirectionalLight(0xffffff, 2);
-  inspectionLight.position.set(0, 8, 0);
-  scene.add(inspectionLight);
+
+  // Entrance / Door Light
+  box([doorX, 2.45, doorZ - 0.25], [0.14, 0.03, 0.14], 0x222228, false);
+  const doorBulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.035, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xecdab9, emissiveIntensity: 1.2 })
+  );
+  doorBulb.position.set(doorX, 2.41, doorZ - 0.25);
+  scene.add(doorBulb);
+
+  const doorLight = new THREE.PointLight(0xecdab9, 1.8, 4.5, 2);
+  doorLight.position.set(doorX, 2.36, doorZ - 0.25);
+  doorLight.castShadow = true;
+  doorLight.shadow.mapSize.set(512, 512);
+  doorLight.shadow.bias = -0.0005;
+  scene.add(doorLight);
+
   const moon = new THREE.DirectionalLight(0x6688cc, 0.4);
   const moonPoint = new THREE.PointLight(0x6688cc, 1.2, 6.0, 2);
   moonPoint.position.set(-1.75, 1.35, -0.7);
@@ -262,7 +296,7 @@ const inspectionLight = new THREE.DirectionalLight(0xffffff, 2);
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  return { scene, camera, renderer, colliders, deskMain, photoGroup };
+  return { scene, camera, renderer, colliders, deskMain, photoGroup, doorPanel, ambient, deskLight, doorLight };
 }
 
 

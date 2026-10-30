@@ -40,7 +40,14 @@ export class PhoneUI {
       z-index: 110;
     `;
     this.closeBtn.textContent = '✕';
-    this.closeBtn.onclick = () => this.hide();
+    this.closeBtn.onclick = (e) => {
+      e.stopPropagation();
+      this.hide();
+      if (this.onFirstConversationFinished) {
+        this.onFirstConversationFinished();
+        this.onFirstConversationFinished = null;
+      }
+    };
     this.container.appendChild(this.closeBtn);
 
     // Header
@@ -83,26 +90,36 @@ export class PhoneUI {
 
   hide() {
     this.container.style.display = 'none';
-    // Re-acquire pointer lock to return to game
-    document.body.requestPointerLock();
+    const hint = document.getElementById('hint');
+    if (hint) hint.style.display = document.pointerLockElement ? 'none' : 'block';
+    try {
+      document.body.requestPointerLock();
+    } catch (_) {}
   }
 
   async show(contactName = 'Alex') {
-    document.exitPointerLock();
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+    const hint = document.getElementById('hint');
+    if (hint) hint.style.display = 'none';
     this.header.textContent = contactName;
     this.container.style.display = 'flex';
     this.messageArea.innerHTML = '';
     this.choiceArea.style.display = 'none';
   }
 
-  async startFirstConversation() {
-    await this.show('Alex');
-    await this.addMessage('you still remember me?', 'alex');
-    await this.sleep(1500);
-    await this.addMessage("I've been trying to reach you.", 'alex');
-    await this.sleep(1500);
-    await this.addMessage("Don't trust whoever is in that photograph.", 'alex');
-    this.showChoices();
+  startFirstConversation() {
+    return new Promise(async (resolve) => {
+      this.onFirstConversationFinished = resolve;
+      await this.show('Alex');
+      await this.addMessage('you still remember me?', 'alex');
+      await this.sleep(1500);
+      await this.addMessage("I've been trying to reach you.", 'alex');
+      await this.sleep(1500);
+      await this.addMessage("Don't trust whoever is in that photograph.", 'alex');
+      this.showChoices();
+    });
   }
 
   async startUnknownConversation() {
@@ -116,6 +133,8 @@ export class PhoneUI {
     await this.addMessage("But I was there that night.", 'unknown');
     await this.sleep(1500);
     await this.addMessage("Look behind the photograph.", 'unknown');
+    await this.sleep(3000);
+    this.hide();
   }
 
   async startWarningConversation() {
@@ -173,7 +192,10 @@ export class PhoneUI {
     btn.textContent = text;
     btn.onmouseover = () => btn.style.background = '#3a3a4a';
     btn.onmouseout = () => btn.style.background = '#2a2a3a';
-    btn.onclick = onClick;
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      onClick(e);
+    };
     return btn;
   }
 
@@ -191,6 +213,14 @@ export class PhoneUI {
       await this.sleep(1000);
       await this.addMessage("Then why did you just hear your phone ring?", 'alex');
       this.flicker();
+    }
+
+    await this.sleep(2500);
+    this.hide();
+
+    if (this.onFirstConversationFinished) {
+      this.onFirstConversationFinished();
+      this.onFirstConversationFinished = null;
     }
   }
 

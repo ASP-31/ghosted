@@ -17,6 +17,21 @@ export class InteractionManager {
     });
   }
 
+  unregister(object) {
+    if (object && object.uuid) {
+      this.interactables.delete(object.uuid);
+      if (this.currentTarget && this.currentTarget.object === object) {
+        this.currentTarget = null;
+      }
+    }
+  }
+
+  setPrompt(object, prompt) {
+    if (object && object.uuid && this.interactables.has(object.uuid)) {
+      this.interactables.get(object.uuid).prompt = prompt;
+    }
+  }
+
   update() {
     // Raycast from center of screen
     this.raycaster.setFromCamera({ x: 0, y: 0 }, this.camera);
@@ -31,10 +46,15 @@ export class InteractionManager {
         // Find which registered object this mesh belongs to
         let target = null;
         for (const [uuid, data] of this.interactables) {
-          if (closest.object === data.object || closest.object.parent === data.object) {
-            target = data;
-            break;
+          let curr = closest.object;
+          while (curr) {
+            if (curr === data.object) {
+              target = data;
+              break;
+            }
+            curr = curr.parent;
           }
+          if (target) break;
         }
         this.currentTarget = target;
       } else {

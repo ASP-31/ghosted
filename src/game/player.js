@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 
 export class Player {
   constructor(camera, colliders) {
@@ -21,12 +21,20 @@ export class Player {
         this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch));
       }
     });
-    document.addEventListener('click', () => {
-      if (!document.pointerLockElement) document.body.requestPointerLock();
+    document.addEventListener('click', (e) => {
+      const phone = document.getElementById('phone-container');
+      if (phone && phone.style.display !== 'none') return;
+      if (!document.pointerLockElement) {
+        try {
+          document.body.requestPointerLock();
+        } catch (_) {}
+      }
     });
     document.addEventListener('pointerlockchange', () => {
       const hint = document.getElementById('hint');
-      if (hint) hint.style.display = document.pointerLockElement ? 'none' : 'block';
+      const phone = document.getElementById('phone-container');
+      const isPhoneOpen = phone && phone.style.display !== 'none';
+      if (hint) hint.style.display = (document.pointerLockElement || isPhoneOpen) ? 'none' : 'block';
     });
   }
 
@@ -46,6 +54,11 @@ export class Player {
     const now = performance.now();
     const dt = Math.min((now - this.last) / 1000, 0.05);
     this.last = now;
+
+    const phone = document.getElementById('phone-container');
+    if (phone && phone.style.display !== 'none') {
+      return;
+    }
 
     const forward = (this.keys['KeyW'] ? 1 : 0) - (this.keys['KeyS'] ? 1 : 0);
     const strafe = (this.keys['KeyD'] ? 1 : 0) - (this.keys['KeyA'] ? 1 : 0);

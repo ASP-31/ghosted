@@ -1,11 +1,11 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { createScene } from './game/scene.js';
 import { Player } from './game/player.js';
 import { HUD } from './ui/hud.js';
 import { InteractionManager } from './game/interaction.js';
 import { PhoneUI } from './ui/phone.js';
 
-const { scene, camera, renderer, colliders, deskMain, photoGroup, doorPanel, ambient, deskLight } = createScene();
+const { scene, camera, renderer, colliders, deskMain, photoGroup, doorPanel, ambient, deskLight, doorLight } = createScene();
 const player = new Player(camera, colliders);
 const hud = new HUD();
 const interaction = new InteractionManager(camera);
@@ -16,23 +16,28 @@ let gameState = 'START'; // START -> PHOTO_EXAMINED -> UNKNOWN_CONTACTED -> PHOT
 const flickerLights = async () => {
   const originalAmbient = ambient.intensity;
   const originalDesk = deskLight.intensity;
+  const originalDoor = doorLight ? doorLight.intensity : 0;
 
   ambient.intensity = 0.05;
   deskLight.intensity = 0.5;
+  if (doorLight) doorLight.intensity = 0.2;
 
   setTimeout(() => {
     ambient.intensity = originalAmbient;
     deskLight.intensity = originalDesk;
+    if (doorLight) doorLight.intensity = originalDoor;
   }, 100);
 
   setTimeout(() => {
     ambient.intensity = 0.02;
     deskLight.intensity = 0.2;
+    if (doorLight) doorLight.intensity = 0.05;
   }, 200);
 
   setTimeout(() => {
     ambient.intensity = originalAmbient;
     deskLight.intensity = originalDesk;
+    if (doorLight) doorLight.intensity = originalDoor;
   }, 300);
 };
 
@@ -55,14 +60,17 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
     setTimeout(async () => {
       await phone.startFirstConversation();
 
-      // After first conversation, schedule the UNKNOWN contact with a 10 second gap
+      // After first conversation concludes and phone closes, wait before UNKNOWN contact
       setTimeout(async () => {
         await phone.startUnknownConversation();
         gameState = 'UNKNOWN_CONTACTED';
-      }, 10000);
+        interaction.setPrompt(photoGroup, '[ E ] Turn Over Photograph');
+      }, 4000);
     }, 2000);
+  } else if (gameState === 'PHOTO_EXAMINED') {
+    hud.showMessage("It's the photograph of Alex. You feel an uneasy chill.");
   } else if (gameState === 'UNKNOWN_CONTACTED') {
-    // VISUAL FEEDBACK: Actually rotate the photo group to simulate turning it over
+    // VISUAL FEEDBACK: Rotate photo group to turn it over
     photoGroup.rotation.x = Math.PI;
 
     // Sequential reveal of the hidden text
@@ -73,8 +81,9 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
     hud.showPermanentMessage("3:13 AM\nYOU WERE NEVER ALONE.");
 
     gameState = 'PHOTO_REVEALED';
+    interaction.setPrompt(photoGroup, '[ E ] Examine Writing');
 
-    // Silence gap: Let the player look around for 3 seconds
+    // Silence gap: Let the player look around
     setTimeout(async () => {
       // Trigger atmospheric effects
       flickerLights();
@@ -83,20 +92,43 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
       // Trigger final warning from Alex
       await phone.startWarningConversation();
 
-      // Once phone closes, make the door subtly different
-      doorPanel.rotation.y = 0.05;
+      // Once phone closes, crack the door open into the room
+      doorPanel.rotation.y = -0.15;
 
       // Now the door becomes the final interactable
+      let doorOpening = false;
       interaction.register(doorPanel, '[ E ] Open Door', () => {
+        if (doorOpening) return;
+        doorOpening = true;
         hud.hideMessage();
-        hud.showMessage("THE END");
+
+        const start = performance.now();
+        const duration = 1200;
+        const initialRot = doorPanel.rotation.y;
+        const targetRot = -1.4;
+
+        function swingDoor(time) {
+          const t = Math.min((time - start) / duration, 1);
+          const ease = 1 - Math.pow(1 - t, 3);
+          doorPanel.rotation.y = initialRot + (targetRot - initialRot) * ease;
+          if (t < 1) {
+            requestAnimationFrame(swingDoor);
+          } else {
+            hud.showPermanentMessage("THE END");
+          }
+        }
+        requestAnimationFrame(swingDoor);
       });
     }, 3000);
+  } else if (gameState === 'PHOTO_REVEALED') {
+    hud.showMessage("The message is etched deep into the back: 3:13 AM. YOU WERE NEVER ALONE.");
   }
 });
 
 document.addEventListener('keydown', async (e) => {
   if (e.code === 'KeyE') {
+    const phoneEl = document.getElementById('phone-container');
+    if (phoneEl && phoneEl.style.display !== 'none') return;
     await interaction.interact();
   }
 });
