@@ -303,8 +303,8 @@ export function createScene() {
   );
   colliders.push(doorCollider);
 
-  // --- EXTENDED HALLWAY & ACCIDENT RECONSTRUCTION ---
-  const hallLen = 6.0;
+  // --- HALLWAY & ACCIDENT RECONSTRUCTION ---
+  const hallLen = 5.2;
   const hallW = 1.3;
   const hallZStart = hd;
   const hallZEnd = hallZStart + hallLen;
@@ -320,19 +320,19 @@ export function createScene() {
   box([doorX, H / 2, hallZEnd + 0.05], [hallW + 0.2, H, 0.1], 0x151518, true);
 
   // Tyre Skid Marks on Hallway Floor
-  box([doorX - 0.28, 0.002, hallZMid + 0.3], [0.1, 0.001, hallLen * 0.75], 0x050505, false, { roughness: 1 });
-  box([doorX + 0.28, 0.002, hallZMid + 0.3], [0.1, 0.001, hallLen * 0.75], 0x050505, false, { roughness: 1 });
+  box([doorX - 0.28, 0.002, hallZMid + 0.2], [0.1, 0.001, hallLen * 0.75], 0x050505, false, { roughness: 1 });
+  box([doorX + 0.28, 0.002, hallZMid + 0.2], [0.1, 0.001, hallLen * 0.75], 0x050505, false, { roughness: 1 });
 
   // Blood Pools & Trail
-  box([doorX + 0.12, 0.004, hallZEnd - 1.2], [0.75, 0.001, 1.2], 0x3b0000, false, { roughness: 0.15, metalness: 0.3 });
-  box([doorX - 0.05, 0.005, hallZEnd - 1.6], [0.45, 0.001, 0.6], 0x480000, false, { roughness: 0.1, metalness: 0.4 });
-  box([doorX + 0.05, 0.003, hallZMid - 0.2], [0.18, 0.001, 1.8], 0x330000, false, { roughness: 0.2, metalness: 0.2 });
-  box([doorX - 0.1, 0.003, hallZStart + 1.2], [0.12, 0.001, 1.4], 0x2b0000, false, { roughness: 0.2 });
+  box([doorX + 0.12, 0.004, hallZEnd - 1.1], [0.75, 0.001, 1.1], 0x3b0000, false, { roughness: 0.15, metalness: 0.3 });
+  box([doorX - 0.05, 0.005, hallZEnd - 1.5], [0.45, 0.001, 0.6], 0x480000, false, { roughness: 0.1, metalness: 0.4 });
+  box([doorX + 0.05, 0.003, hallZMid], [0.18, 0.001, 1.5], 0x330000, false, { roughness: 0.2, metalness: 0.2 });
+  box([doorX - 0.1, 0.003, hallZStart + 1.2], [0.12, 0.001, 1.0], 0x2b0000, false, { roughness: 0.2 });
 
   // Shattered Glass Shards along the Hallway
-  for (let i = 0; i < 16; i++) {
-    const gx = doorX + (Math.sin(i * 1.7) * 0.45);
-    const gz = hallZStart + 1.5 + (i * 0.25);
+  for (let i = 0; i < 14; i++) {
+    const gx = doorX + (Math.sin(i * 1.7) * 0.42);
+    const gz = hallZStart + 1.2 + (i * 0.28);
     box([gx, 0.005, gz], [0.035, 0.004, 0.035], 0x99ccff, false, {
       roughness: 0.1,
       metalness: 0.9,
@@ -345,10 +345,20 @@ export function createScene() {
   box([doorX - 0.15, 0.35, hallZEnd - 0.4], [0.85, 0.5, 0.4], 0x1a2228, true, { roughness: 0.5, metalness: 0.7, rotation: [0.1, -0.2, 0.15] });
   box([doorX + 0.25, 0.2, hallZEnd - 0.3], [0.4, 0.35, 0.3], 0x111111, false, { metalness: 0.8, roughness: 0.4, rotation: [-0.15, 0.3, 0] });
 
-  // Hallway Dim Overhead Light
-  const hallLight = new THREE.PointLight(0x7a8fa8, 0.8, 6.0, 2);
+  // Hallway Overhead Light
+  const hallLight = new THREE.PointLight(0x8899aa, 1.6, 7.5, 2);
   hallLight.position.set(doorX, 2.3, hallZMid);
   scene.add(hallLight);
+
+  // Permanent deep red ground-glow over the blood pool
+  const bloodLight = new THREE.PointLight(0x660000, 2.8, 2.5, 2);
+  bloodLight.position.set(doorX + 0.1, 0.12, hallZEnd - 1.1);
+  scene.add(bloodLight);
+
+  // Dim red fill further back to illuminate the wreckage
+  const wreckLight = new THREE.PointLight(0x3a0000, 1.5, 3.0, 2);
+  wreckLight.position.set(doorX, 0.4, hallZEnd - 0.4);
+  scene.add(wreckLight);
 
   // Blinding Accident Headlights
   const headlightL = new THREE.SpotLight(0xfffaed, 0, 12, Math.PI / 5, 0.4);
@@ -358,7 +368,7 @@ export function createScene() {
   scene.add(headlightL.target);
 
   const headlightR = new THREE.SpotLight(0xfffaed, 0, 12, Math.PI / 5, 0.4);
-  headlightR.position.set(doorX + 0.3, 0.4, hallZEnd - 0.3);
+  headlightR.position.set(doorX + 0.3, 0.4, hallZEnd - 0.25);
   headlightR.target.position.set(doorX + 0.2, 0.4, hallZStart);
   scene.add(headlightR);
   scene.add(headlightR.target);

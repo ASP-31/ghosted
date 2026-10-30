@@ -155,11 +155,11 @@ export class PhoneUI {
   async startFinalConversation(onChoice, onLookBehind) {
     if (this.closeBtn) this.closeBtn.style.display = 'none';
     await this.show('UNKNOWN');
-    await this.addMessage(' You finally opened it. ', 'unknown');
-    await this.sleep(1000);
+    await this.addMessage('You finally opened it.', 'unknown');
+    await this.sleep(400);
     await this.addMessage('Now look behind you.', 'unknown');
     if (onLookBehind) onLookBehind();
-    await this.sleep(1500);
+    await this.sleep(400);
 
     this.showFinalChoices(onChoice);
   }
@@ -171,11 +171,9 @@ export class PhoneUI {
     const btn1 = this.createChoiceButton('Trust Alex', async () => {
       this.choiceArea.style.display = 'none';
       await this.addMessage('Trust Alex', 'player');
-      await this.sleep(800);
+      await this.sleep(250);
       await this.addMessage("You still don't understand.", 'unknown');
-      await this.sleep(1000);
-      await this.addMessage('Look behind you.', 'unknown');
-      await this.sleep(1200);
+      await this.sleep(300);
       this.hide();
       if (this.closeBtn) this.closeBtn.style.display = 'block';
       if (onChoice) onChoice('alex');
@@ -184,11 +182,9 @@ export class PhoneUI {
     const btn2 = this.createChoiceButton('Trust UNKNOWN', async () => {
       this.choiceArea.style.display = 'none';
       await this.addMessage('Trust UNKNOWN', 'player');
-      await this.sleep(800);
-      await this.addMessage('Good.', 'unknown');
-      await this.sleep(1000);
-      await this.addMessage('Now forget this night.', 'unknown');
-      await this.sleep(1200);
+      await this.sleep(250);
+      await this.addMessage('Good. Now forget this night.', 'unknown');
+      await this.sleep(400);
       this.hide();
       if (this.closeBtn) this.closeBtn.style.display = 'block';
       if (onChoice) onChoice('unknown');

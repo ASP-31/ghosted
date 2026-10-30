@@ -23,6 +23,17 @@ document.addEventListener('keydown', initAudio, { once: true });
 
 let gameState = 'START'; // START -> PHOTO_EXAMINED -> UNKNOWN_CONTACTED -> PHOTO_REVEALED -> DOOR_OPENED -> ACCIDENT_TRIGGERED -> ENDING_CHOICE -> ENDING_GHOSTED / ENDING_ESCAPED
 
+// ── Horror state ──────────────────────────────────────────────────
+let footstepCooldown = 0;
+let hallFlickerT = 0;
+const hallBaseIntensity = 1.6;
+let shakeAmount = 0;
+const baseY = camera.position.y;
+let hallwayHorrorStarted = false;
+let hallwayHorrorInterval = null;
+let whisperLoopInterval = null;
+let hallwaySteps = 0;
+
 const flickerLights = async () => {
   const originalAmbient = ambient.intensity;
   const originalDesk = deskLight.intensity;
@@ -164,7 +175,7 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
         audio.playCreak();
 
         const start = performance.now();
-        const duration = 1800;
+        const duration = 1200;
         const initialRot = doorPanel.rotation.y;
         const targetRot = -1.4;
 
@@ -180,12 +191,10 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
             const cIdx = colliders.indexOf(doorCollider);
             if (cIdx > -1) colliders.splice(cIdx, 1);
 
-            hud.showMessage("The hallway is empty.", 2200);
+            gameState = 'DOOR_OPENED';
+            hallwaySteps = 0;
+            hud.showMessage("The hallway is quiet...\nInvestigate.", 3500);
             audio.playWhisper();
-            setTimeout(() => {
-              gameState = 'DOOR_OPENED';
-              hud.showMessage("The door creaks open into the hallway...\nInvestigate.", 4000);
-            }, 2200);
           }
         }
         requestAnimationFrame(swingDoor);
@@ -208,30 +217,110 @@ document.addEventListener('keydown', async (e) => {
 function animate() {
   requestAnimationFrame(animate);
   player.update();
+  const now = performance.now();
+  const camZ = camera.position.z;
+  const inHallway = camZ > 2.3;
+  const inTenseState = gameState === 'PHOTO_REVEALED' || gameState === 'DOOR_OPENED' ||
+                       gameState === 'ACCIDENT_TRIGGERED' || gameState === 'ENDING_CHOICE';
 
-  // Ghost twitch jitter animation when visible
-  if (ghostGroup && ghostGroup.visible) {
+  // ── 1. HALLWAY LIGHT FLICKER ────────────────────────────────────
+  if (inHallway && hallLight) {
+    hallFlickerT += 0.016;
+    const base = hallBaseIntensity;
+    // Slow swell + random micro-stutter
+    const flicker = Math.sin(hallFlickerT * 1.3) * 0.15 +
+                    (Math.random() < 0.04 ? (Math.random() - 0.5) * base : 0);
+    hallLight.intensity = Math.max(0, base + flicker);
+    // Occasional full-off stutter (1% chance per frame)
+    if (Math.random() < 0.008) {
+      hallLight.intensity = 0;
+      setTimeout(() => { if (hallLight) hallLight.intensity = base; }, 60 + Math.random() * 80);
+    }
+  }
+
+  // ── 2. CAMERA MICRO-SHAKE ───────────────────────────────────────
+  if (shakeAmount > 0.001) {
+    camera.position.x += (Math.random() - 0.5) * shakeAmount;
+    camera.position.y += (Math.random() - 0.5) * shakeAmount * 0.5;
+    shakeAmount *= 0.88; // decay
+  } else if (inTenseState) {
+    // Very subtle perpetual breathing sway
+    const sway = Math.sin(now * 0.001) * 0.003;
+    camera.position.y = baseY + sway;
+  }
+
+  // ── 3. FOOTSTEPS ────────────────────────────────────────────────
+  if (footstepCooldown > 0) footstepCooldown -= 16;
+  const isMoving = ['KeyW','KeyS','KeyA','KeyD'].some(k => player.keys[k]);
+  if (isMoving && footstepCooldown <= 0) {
+    audio.playFootstep();
+    footstepCooldown = inHallway ? 480 : 520; // faster echo in hallway
+    if (gameState === 'DOOR_OPENED' && inHallway) {
+      hallwaySteps++;
+    }
+  }
+
+  // ── HALLWAY HORROR ENGINE (Suspenseful quiet start) ─────────────
+  if (gameState === 'DOOR_OPENED' && inHallway && !hallwayHorrorStarted) {
+    hallwayHorrorStarted = true;
+    audio.startBreathing(2200);
+
+    // Subtle whispers begin after 4 seconds of walking
+    whisperLoopInterval = setInterval(() => {
+      audio.playWhisper();
+      shakeAmount = Math.max(shakeAmount, 0.008);
+    }, 4500);
+  }
+
+  // Stop hallway loops when accident hits
+  if (gameState === 'ACCIDENT_TRIGGERED' && hallwayHorrorInterval) {
+    clearInterval(hallwayHorrorInterval); hallwayHorrorInterval = null;
+  }
+  if (gameState === 'ACCIDENT_TRIGGERED' && whisperLoopInterval) {
+    clearInterval(whisperLoopInterval); whisperLoopInterval = null;
+  }
+
+  // ── Ghost twitch jitter & sustained jumpscare animation ─────────
+  if (gameState === 'ENDING_GHOSTED') {
+    // Sustained terrifying jumpscare: ghost stays right in the player's face twitching violently
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    ghostGroup.position.set(
+      camera.position.x + dir.x * 0.65 + (Math.random() - 0.5) * 0.06,
+      (Math.random() - 0.5) * 0.03,
+      camera.position.z + dir.z * 0.65 + (Math.random() - 0.5) * 0.06
+    );
+    ghostGroup.rotation.z = (Math.random() - 0.5) * 0.22;
+    ghostGroup.rotation.y = camera.rotation.y + Math.PI + (Math.random() - 0.5) * 0.15;
+    ghostGroup.visible = true;
+
+    // Headlights strobe wildly
+    const strobe = Math.random() < 0.55;
+    headlightL.intensity = strobe ? 16 : 2;
+    headlightR.intensity = strobe ? 16 : 2;
+    shakeAmount = Math.max(shakeAmount, 0.09 + Math.random() * 0.08);
+  } else if (ghostGroup && ghostGroup.visible) {
     ghostGroup.position.x = 0.9 + (Math.random() - 0.5) * 0.04;
     ghostGroup.rotation.z = (Math.random() - 0.5) * 0.07;
   }
 
-  // Accident Scene Discovery Trigger: Walking down the corridor
-  if (gameState === 'DOOR_OPENED' && camera.position.z > 3.4) {
+  // ── Accident Scene Discovery — player walks ~5 steps into hallway, thinking nothing is there ───
+  if (gameState === 'DOOR_OPENED' && (hallwaySteps >= 5 || camZ > 3.85)) {
     gameState = 'ACCIDENT_TRIGGERED';
+    audio.stopBreathing();
+    shakeAmount = 0.14;
 
-    // Violent crash sound & sudden blinding high-beams
     audio.playCrashSound();
-    headlightL.intensity = 8;
-    headlightR.intensity = 8;
+    headlightL.intensity = 15;
+    headlightR.intensity = 15;
     setTimeout(() => {
       headlightL.intensity = 0;
       headlightR.intensity = 0;
-    }, 280);
+    }, 380);
 
     triggerSubtleScare();
-    hud.showMessage("Tyre tracks... Broken glass and blood.\nThe crash happened here.", 4000);
+    hud.showPermanentMessage("Tyre tracks... Broken glass and blood.\nThe crash happened here.");
 
-    // After discovering the accident, UNKNOWN initiates the climax
     setTimeout(async () => {
       gameState = 'ENDING_CHOICE';
 
@@ -241,42 +330,53 @@ function animate() {
         if (choice === 'alex') {
           gameState = 'ENDING_GHOSTED';
 
-          // Terrifying jumpscare stinger: ghost lunges forward!
+          // Trap player facing the jumpscare:
+          player.disable();
+          interaction.interactables.clear();
+
+          // Sustained horror roar and violent camera shake:
           audio.playJumpscareStinger();
-          ghostGroup.position.z += 1.8;
-          headlightL.intensity = 6;
-          headlightR.intensity = 6;
+          shakeAmount = 0.22;
+
+          // Position ghost directly in camera face:
+          const dir = new THREE.Vector3();
+          camera.getWorldDirection(dir);
+          ghostGroup.position.set(
+            camera.position.x + dir.x * 0.65,
+            0,
+            camera.position.z + dir.z * 0.65
+          );
+          ghostGroup.lookAt(camera.position.x, ghostGroup.position.y, camera.position.z);
+          ghostGroup.visible = true;
+
           triggerSubtleScare();
 
+          // Jumpscare stays active and intense for 3.5 seconds before ending screen overlays
           setTimeout(() => {
-            headlightL.intensity = 0;
-            headlightR.intensity = 0;
-            player.disable();
-            interaction.interactables.clear();
             hud.showEnding("GHOSTED", "You should have listened.", true);
-          }, 1200);
+          }, 3500);
         } else if (choice === 'unknown') {
           gameState = 'ENDING_ESCAPED';
-
           player.disable();
           interaction.interactables.clear();
           hud.showEnding("ESCAPED", "You were never supposed to remember.", false);
         }
       }, () => {
         // "Now look behind you" event:
-        // Door violently SLAMS SHUT and shadow figure appears twitching!
+        // Door slams shut and shadow figure appears right behind player
         audio.playDoorSlam();
+        shakeAmount = 0.08;
         doorPanel.rotation.y = 0;
         ghostGroup.visible = true;
-        ghostGroup.position.set(0.9, 0, 2.2);
-        audio.startHeartbeat(360);
+        ghostGroup.position.set(0.9, 0, 2.15);
+        audio.startHeartbeat(340);
+        hud.showPermanentMessage("LOOK BEHIND YOU.");
       });
-    }, 3500);
+    }, 1200);
   }
 
   const target = interaction.update();
   hud.update(target);
-
   renderer.render(scene, camera);
 }
 animate();
