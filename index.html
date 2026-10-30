@@ -1,0 +1,24 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GHOSTED</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+    #app { width: 100%; height: 100%; }
+    canvas { display: block; }
+    #hint {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      color: #ddd; font-family: monospace; font-size: 14px;
+      background: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 4px;
+      pointer-events: none; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="hint">Click to lock mouse. WASD to move, mouse to look, ESC to unlock.</div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
