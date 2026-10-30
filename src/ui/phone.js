@@ -150,6 +150,51 @@ export class PhoneUI {
     this.hide();
   }
 
+  async startFinalConversation(onChoice) {
+    if (this.closeBtn) this.closeBtn.style.display = 'none';
+    await this.show('UNKNOWN');
+    await this.addMessage(' You finally opened it. ', 'unknown');
+    await this.sleep(1000);
+    await this.addMessage('Now look behind you.', 'unknown');
+    await this.sleep(1500);
+
+    this.showFinalChoices(onChoice);
+  }
+
+  showFinalChoices(onChoice) {
+    this.choiceArea.innerHTML = '';
+    this.choiceArea.style.display = 'flex';
+
+    const btn1 = this.createChoiceButton('Trust Alex', async () => {
+      this.choiceArea.style.display = 'none';
+      await this.addMessage('Trust Alex', 'player');
+      await this.sleep(800);
+      await this.addMessage("You still don't understand.", 'unknown');
+      await this.sleep(1000);
+      await this.addMessage('Look behind you.', 'unknown');
+      await this.sleep(1200);
+      this.hide();
+      if (this.closeBtn) this.closeBtn.style.display = 'block';
+      if (onChoice) onChoice('alex');
+    });
+
+    const btn2 = this.createChoiceButton('Trust UNKNOWN', async () => {
+      this.choiceArea.style.display = 'none';
+      await this.addMessage('Trust UNKNOWN', 'player');
+      await this.sleep(800);
+      await this.addMessage('Good.', 'unknown');
+      await this.sleep(1000);
+      await this.addMessage('Now forget this night.', 'unknown');
+      await this.sleep(1200);
+      this.hide();
+      if (this.closeBtn) this.closeBtn.style.display = 'block';
+      if (onChoice) onChoice('unknown');
+    });
+
+    this.choiceArea.appendChild(btn1);
+    this.choiceArea.appendChild(btn2);
+  }
+
   async addMessage(text, sender) {
     const msg = document.createElement('div');
     msg.style.cssText = `

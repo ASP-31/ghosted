@@ -11,10 +11,18 @@ export class Player {
     this.pitch = 0;
     this.keys = {};
     this.last = performance.now();
+    this.disabled = false;
 
-    document.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
-    document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    document.addEventListener('keydown', (e) => {
+      if (this.disabled) return;
+      this.keys[e.code] = true;
+    });
+    document.addEventListener('keyup', (e) => {
+      if (this.disabled) return;
+      this.keys[e.code] = false;
+    });
     document.addEventListener('mousemove', (e) => {
+      if (this.disabled) return;
       if (document.pointerLockElement) {
         this.yaw -= e.movementX * 0.0022;
         this.pitch -= e.movementY * 0.0022;
@@ -22,6 +30,7 @@ export class Player {
       }
     });
     document.addEventListener('click', (e) => {
+      if (this.disabled) return;
       const phone = document.getElementById('phone-container');
       if (phone && phone.style.display !== 'none') return;
       if (!document.pointerLockElement) {
@@ -32,6 +41,10 @@ export class Player {
     });
     document.addEventListener('pointerlockchange', () => {
       const hint = document.getElementById('hint');
+      if (this.disabled) {
+        if (hint) hint.style.display = 'none';
+        return;
+      }
       const phone = document.getElementById('phone-container');
       const isPhoneOpen = phone && phone.style.display !== 'none';
       if (hint) hint.style.display = (document.pointerLockElement || isPhoneOpen) ? 'none' : 'block';
@@ -50,7 +63,22 @@ export class Player {
     return false;
   }
 
+  disable() {
+    this.disabled = true;
+    this.keys = {};
+    if (document.pointerLockElement) {
+      try {
+        document.exitPointerLock();
+      } catch (_) {}
+    }
+  }
+
   update() {
+    if (this.disabled) {
+      this.keys = {};
+      return;
+    }
+
     const now = performance.now();
     const dt = Math.min((now - this.last) / 1000, 0.05);
     this.last = now;

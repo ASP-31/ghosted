@@ -11,7 +11,7 @@ const hud = new HUD();
 const interaction = new InteractionManager(camera);
 const phone = new PhoneUI();
 
-let gameState = 'START'; // START -> PHOTO_EXAMINED -> UNKNOWN_CONTACTED -> PHOTO_REVEALED -> FINAL_WARNING
+let gameState = 'START'; // START -> PHOTO_EXAMINED -> UNKNOWN_CONTACTED -> PHOTO_REVEALED -> ENDING_CHOICE -> ENDING_GHOSTED / ENDING_ESCAPED
 
 const flickerLights = async () => {
   const originalAmbient = ambient.intensity;
@@ -39,6 +39,50 @@ const flickerLights = async () => {
     deskLight.intensity = originalDesk;
     if (doorLight) doorLight.intensity = originalDoor;
   }, 300);
+};
+
+const triggerSubtleScare = () => {
+  const originalAmbient = ambient.intensity;
+  const originalDesk = deskLight.intensity;
+  const originalDoor = doorLight ? doorLight.intensity : 0;
+  const originalAmbientColor = ambient.color.getHex();
+
+  // Erratic flicker
+  ambient.intensity = 0.0;
+  deskLight.intensity = 0.0;
+  if (doorLight) doorLight.intensity = 0.0;
+
+  setTimeout(() => {
+    ambient.color.setHex(0x330808);
+    ambient.intensity = 0.2;
+    deskLight.intensity = 0.3;
+  }, 100);
+
+  setTimeout(() => {
+    ambient.intensity = 0.0;
+    deskLight.intensity = 0.0;
+    if (doorLight) doorLight.intensity = 0.0;
+  }, 220);
+
+  setTimeout(() => {
+    ambient.color.setHex(0x1a0505);
+    ambient.intensity = 0.15;
+    deskLight.intensity = 1.6;
+    if (doorLight) doorLight.intensity = 0.8;
+  }, 350);
+
+  setTimeout(() => {
+    ambient.intensity = 0.02;
+    deskLight.intensity = 0.1;
+    if (doorLight) doorLight.intensity = 0.0;
+  }, 500);
+
+  setTimeout(() => {
+    ambient.intensity = originalAmbient;
+    ambient.color.setHex(originalAmbientColor);
+    deskLight.intensity = originalDesk;
+    if (doorLight) doorLight.intensity = originalDoor;
+  }, 750);
 };
 
 const highlightDoor = () => {
@@ -114,7 +158,40 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
           if (t < 1) {
             requestAnimationFrame(swingDoor);
           } else {
-            hud.showPermanentMessage("THE END");
+            // Door has finished opening - remove door interaction
+            interaction.unregister(doorPanel);
+
+            // 1. Show temporary message near the bottom
+            hud.showMessage("The hallway is empty.", 2500);
+
+            // Wait approximately 2 seconds
+            setTimeout(async () => {
+              gameState = 'ENDING_CHOICE';
+
+              // 2 & 3. UNKNOWN Phone Message & Final Choice
+              await phone.startFinalConversation(async (choice) => {
+                if (choice === 'alex') {
+                  gameState = 'ENDING_GHOSTED';
+
+                  // 4. Subtle visual scare: brief room/scene flicker
+                  triggerSubtleScare();
+
+                  // Fade toward black and display first ending: GHOSTED
+                  setTimeout(() => {
+                    player.disable();
+                    interaction.interactables.clear();
+                    hud.showEnding("GHOSTED", "You should have listened.", true);
+                  }, 1200);
+                } else if (choice === 'unknown') {
+                  gameState = 'ENDING_ESCAPED';
+
+                  // 5. Fade toward black and display second ending: ESCAPED
+                  player.disable();
+                  interaction.interactables.clear();
+                  hud.showEnding("ESCAPED", "You were never supposed to remember.", false);
+                }
+              });
+            }, 2000);
           }
         }
         requestAnimationFrame(swingDoor);
@@ -126,6 +203,7 @@ interaction.register(photoGroup, '[ E ] Examine Photograph', async () => {
 });
 
 document.addEventListener('keydown', async (e) => {
+  if (gameState === 'ENDING_GHOSTED' || gameState === 'ENDING_ESCAPED') return;
   if (e.code === 'KeyE') {
     const phoneEl = document.getElementById('phone-container');
     if (phoneEl && phoneEl.style.display !== 'none') return;
