@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 
 export class Player {
   constructor(camera, colliders) {
@@ -11,22 +11,43 @@ export class Player {
     this.pitch = 0;
     this.keys = {};
     this.last = performance.now();
+    this.disabled = false;
 
-    document.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
-    document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    document.addEventListener('keydown', (e) => {
+      if (this.disabled) return;
+      this.keys[e.code] = true;
+    });
+    document.addEventListener('keyup', (e) => {
+      if (this.disabled) return;
+      this.keys[e.code] = false;
+    });
     document.addEventListener('mousemove', (e) => {
+      if (this.disabled) return;
       if (document.pointerLockElement) {
         this.yaw -= e.movementX * 0.0022;
         this.pitch -= e.movementY * 0.0022;
         this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch));
       }
     });
-    document.addEventListener('click', () => {
-      if (!document.pointerLockElement) document.body.requestPointerLock();
+    document.addEventListener('click', (e) => {
+      if (this.disabled) return;
+      const phone = document.getElementById('phone-container');
+      if (phone && phone.style.display !== 'none') return;
+      if (!document.pointerLockElement) {
+        try {
+          document.body.requestPointerLock();
+        } catch (_) {}
+      }
     });
     document.addEventListener('pointerlockchange', () => {
       const hint = document.getElementById('hint');
-      if (hint) hint.style.display = document.pointerLockElement ? 'none' : 'block';
+      if (this.disabled) {
+        if (hint) hint.style.display = 'none';
+        return;
+      }
+      const phone = document.getElementById('phone-container');
+      const isPhoneOpen = phone && phone.style.display !== 'none';
+      if (hint) hint.style.display = (document.pointerLockElement || isPhoneOpen) ? 'none' : 'block';
     });
   }
 
@@ -42,10 +63,30 @@ export class Player {
     return false;
   }
 
+  disable() {
+    this.disabled = true;
+    this.keys = {};
+    if (document.pointerLockElement) {
+      try {
+        document.exitPointerLock();
+      } catch (_) {}
+    }
+  }
+
   update() {
+    if (this.disabled) {
+      this.keys = {};
+      return;
+    }
+
     const now = performance.now();
     const dt = Math.min((now - this.last) / 1000, 0.05);
     this.last = now;
+
+    const phone = document.getElementById('phone-container');
+    if (phone && phone.style.display !== 'none') {
+      return;
+    }
 
     const forward = (this.keys['KeyW'] ? 1 : 0) - (this.keys['KeyS'] ? 1 : 0);
     const strafe = (this.keys['KeyD'] ? 1 : 0) - (this.keys['KeyA'] ? 1 : 0);
