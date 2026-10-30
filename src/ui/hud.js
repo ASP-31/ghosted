@@ -70,12 +70,21 @@ export class HUD {
     }
   }
 
-  showMessage(text) {
+  showMessage(text, duration = 3000) {
     this.message.textContent = text;
     this.message.style.opacity = '1';
 
     setTimeout(() => {
       this.message.style.opacity = '0';
-    }, 3000);
+    }, duration);
+  }
+
+  showPermanentMessage(text) {
+    this.message.textContent = text;
+    this.message.style.opacity = '1';
+  }
+
+  hideMessage() {
+    this.message.style.opacity = '0';
   }
 }

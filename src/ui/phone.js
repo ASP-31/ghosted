@@ -28,9 +28,24 @@ export class PhoneUI {
     `;
     document.body.appendChild(this.container);
 
+    // Close Button
+    this.closeBtn = document.createElement('div');
+    this.closeBtn.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      cursor: pointer;
+      font-size: 20px;
+      color: #666;
+      z-index: 110;
+    `;
+    this.closeBtn.textContent = '✕';
+    this.closeBtn.onclick = () => this.hide();
+    this.container.appendChild(this.closeBtn);
+
     // Header
-    const header = document.createElement('div');
-    header.style.cssText = `
+    this.header = document.createElement('div');
+    this.header.style.cssText = `
       padding: 20px;
       background: #1a1a24;
       text-align: center;
@@ -38,8 +53,8 @@ export class PhoneUI {
       border-bottom: 1px solid #333;
       font-size: 18px;
     `;
-    header.textContent = 'Alex';
-    this.container.appendChild(header);
+    this.header.textContent = 'Alex';
+    this.container.appendChild(this.header);
 
     // Message Area
     this.messageArea = document.createElement('div');
@@ -66,21 +81,54 @@ export class PhoneUI {
     this.container.appendChild(this.choiceArea);
   }
 
-  async show() {
-    // Release pointer lock so player can click buttons
-    document.exitPointerLock();
+  hide() {
+    this.container.style.display = 'none';
+    // Re-acquire pointer lock to return to game
+    document.body.requestPointerLock();
+  }
 
+  async show(contactName = 'Alex') {
+    document.exitPointerLock();
+    this.header.textContent = contactName;
     this.container.style.display = 'flex';
     this.messageArea.innerHTML = '';
     this.choiceArea.style.display = 'none';
+  }
 
+  async startFirstConversation() {
+    await this.show('Alex');
     await this.addMessage('you still remember me?', 'alex');
     await this.sleep(1500);
     await this.addMessage("I've been trying to reach you.", 'alex');
     await this.sleep(1500);
     await this.addMessage("Don't trust whoever is in that photograph.", 'alex');
-
     this.showChoices();
+  }
+
+  async startUnknownConversation() {
+    await this.show('UNKNOWN');
+    await this.addMessage("Don't listen to him.", 'unknown');
+    await this.sleep(1500);
+    await this.addMessage("He's not Alex.", 'unknown');
+    await this.sleep(1500);
+    await this.addMessage("I know you don't remember me.", 'unknown');
+    await this.sleep(1500);
+    await this.addMessage("But I was there that night.", 'unknown');
+    await this.sleep(1500);
+    await this.addMessage("Look behind the photograph.", 'unknown');
+  }
+
+  async startWarningConversation() {
+    await this.show('Alex');
+    await this.addMessage("Why did you turn it over?", 'alex');
+    await this.sleep(1500);
+    await this.addMessage("I told you not to.", 'alex');
+    await this.sleep(1500);
+    await this.addMessage("Don't look at the door.", 'alex');
+
+    // Automatically close phone after final warning
+    await this.sleep(3000);
+    this.hide();
   }
 
   async addMessage(text, sender) {
@@ -91,12 +139,12 @@ export class PhoneUI {
       border-radius: 10px;
       font-size: 14px;
       line-height: 1.4;
-      ${sender === 'alex' ? 'align-self: flex-start; background: #333; color: #eee;' : 'align-self: flex-end; background: #4a6da7; color: white;'}
+      ${sender === 'alex' || sender === 'unknown' ? 'align-self: flex-start; background: #333; color: #eee;' : 'align-self: flex-end; background: #4a6da7; color: white;'}
     `;
     msg.textContent = text;
     this.messageArea.appendChild(msg);
     this.messageArea.scrollTop = this.messageArea.scrollHeight;
-    return this.sleep(500); // Small delay for visual pop
+    return this.sleep(500);
   }
 
   showChoices() {

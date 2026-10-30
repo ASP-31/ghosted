@@ -47,9 +47,9 @@ export class InteractionManager {
     return this.currentTarget;
   }
 
-  interact() {
+  async interact() {
     if (this.currentTarget && this.currentTarget.onInteract) {
-      this.currentTarget.onInteract();
+      await this.currentTarget.onInteract();
       return true;
     }
     return false;

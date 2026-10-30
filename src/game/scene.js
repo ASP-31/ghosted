@@ -97,7 +97,7 @@ export function createScene() {
   const doorX = 0.9;
   const doorZ = hd - 0.05;
   // Door panel - darker than wall
-  box([doorX, 1.05, doorZ], [0.82, 2.05, 0.08], 0x352b22, false, { roughness: 0.8 });
+  const doorPanel = box([doorX, 1.05, doorZ], [0.82, 2.05, 0.08], 0x352b22, false, { roughness: 0.8 });
   // Door frame (left, right, top)
   box([doorX - 0.45, 1.1, doorZ + 0.01], [0.07, 2.2, 0.1], 0x2a231b, false);
   box([doorX + 0.45, 1.1, doorZ + 0.01], [0.07, 2.2, 0.1], 0x2a231b, false);
@@ -159,6 +159,14 @@ export function createScene() {
   );
   photoContent.position.y = 0.001;
   photoGroup.add(photoContent);
+
+  // Back text representation (dark shapes to suggest writing)
+  const photoBackText = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.003, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1 })
+  );
+  photoBackText.position.y = -0.002;
+  photoGroup.add(photoBackText);
 
   // "Scratched out" detail (small dark streaks)
   for (let i = 0; i < 5; i++) {
