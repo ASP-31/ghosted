@@ -21,6 +21,41 @@ const initAudio = () => audio.init();
 document.addEventListener('click', initAudio, { once: true });
 document.addEventListener('keydown', initAudio, { once: true });
 
+// ── Opening Screen ───────────────────────────────────────────────
+player.disabled = true;
+const titleScreen = document.createElement('div');
+titleScreen.id = 'title-screen';
+titleScreen.style.cssText = `
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: #05070c; z-index: 600;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Courier New', Courier, monospace; color: #e0e0e0;
+  user-select: none; transition: opacity 0.8s ease;
+`;
+titleScreen.innerHTML = `
+  <h1 style="font-size: 32px; letter-spacing: 10px; margin: 0 0 28px 0; text-align: center; text-shadow: 0 0 20px rgba(255,255,255,0.2);">GHOSTED: THE LAST SEEN</h1>
+  <p style="font-size: 14px; letter-spacing: 3px; color: #888; margin: 0 0 6px 0; text-align: center;">HEADPHONES RECOMMENDED</p>
+  <p style="font-size: 13px; letter-spacing: 2px; color: #666; margin: 0 0 44px 0; text-align: center;">For the best experience.</p>
+  <div style="font-size: 15px; letter-spacing: 4px; color: #bbb; cursor: pointer; padding: 10px 20px;">[ ENTER ]</div>
+`;
+document.body.appendChild(titleScreen);
+
+const startGame = () => {
+  if (!player.disabled) return;
+  initAudio();
+  player.disabled = false;
+  try { document.body.requestPointerLock(); } catch (_) {}
+  titleScreen.style.opacity = '0';
+  setTimeout(() => titleScreen.remove(), 800);
+  window.removeEventListener('keydown', handleStartKey);
+};
+
+const handleStartKey = (e) => {
+  if (e.code === 'Enter' || e.code === 'NumpadEnter') startGame();
+};
+window.addEventListener('keydown', handleStartKey);
+titleScreen.addEventListener('click', startGame);
+
 let gameState = 'START'; // START -> PHOTO_EXAMINED -> UNKNOWN_CONTACTED -> PHOTO_REVEALED -> DOOR_OPENED -> ACCIDENT_TRIGGERED -> ENDING_CHOICE -> ENDING_GHOSTED / ENDING_ESCAPED
 
 // ── Horror state ──────────────────────────────────────────────────
