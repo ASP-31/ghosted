@@ -373,23 +373,15 @@ function animate() {
 
   // ── Ghost twitch jitter & sustained jumpscare animation ─────────
   if (gameState === 'ENDING_GHOSTED') {
-    // Sustained terrifying jumpscare: ghost stays right in the player's face twitching violently
-    const dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
-    ghostGroup.position.set(
-      camera.position.x + dir.x * 0.65 + (Math.random() - 0.5) * 0.06,
-      (Math.random() - 0.5) * 0.03,
-      camera.position.z + dir.z * 0.65 + (Math.random() - 0.5) * 0.06
-    );
-    ghostGroup.rotation.z = (Math.random() - 0.5) * 0.22;
-    ghostGroup.rotation.y = camera.rotation.y + Math.PI + (Math.random() - 0.5) * 0.15;
-    ghostGroup.visible = true;
-
-    // Headlights strobe wildly
-    const strobe = Math.random() < 0.45;
-    headlightL.intensity = strobe ? 14 : 2;
-    headlightR.intensity = strobe ? 14 : 2;
-    shakeAmount = Math.max(shakeAmount, 0.04 + Math.random() * 0.03);
+    if (ghostGroup && ghostGroup.visible) {
+      // Atmospheric jitter while maintaining visible silhouette
+      ghostGroup.rotation.z = (Math.random() - 0.5) * 0.12;
+      // Headlights flare and strobe across the figure
+      const strobe = Math.random() < 0.5;
+      headlightL.intensity = strobe ? 10 : 3;
+      headlightR.intensity = strobe ? 10 : 3;
+    }
+    shakeAmount = Math.max(shakeAmount, 0.03 + Math.random() * 0.02);
   } else if (ghostGroup && ghostGroup.visible) {
     ghostGroup.position.x = 0.9 + (Math.random() - 0.5) * 0.04;
     ghostGroup.rotation.z = (Math.random() - 0.5) * 0.07;
@@ -425,27 +417,52 @@ function animate() {
           player.disable();
           interaction.interactables.clear();
 
-          // SCARE 3: FINAL PAYOFF — Loudest main jumpscare
+          // SCARE 3: FINAL PAYOFF — Loudest main jumpscare (sustained audio + visual lunge)
           audio.playJumpscareStinger();
-          shakeAmount = 0.10; // impactful, non-excessive camera shake
+          shakeAmount = 0.12;
 
-          // Position ghost directly in camera face:
+          // Start full silhouette in hallway ahead, then explosively lunge forward!
           const dir = new THREE.Vector3();
           camera.getWorldDirection(dir);
+          const startDist = 2.8;
+          const endDist = 1.35; // stops close with full silhouetted body, head and eyes visible
+
           ghostGroup.position.set(
-            camera.position.x + dir.x * 0.65,
+            camera.position.x + dir.x * startDist,
             0,
-            camera.position.z + dir.z * 0.65
+            camera.position.z + dir.z * startDist
           );
           ghostGroup.lookAt(camera.position.x, ghostGroup.position.y, camera.position.z);
           ghostGroup.visible = true;
 
+          // Violent forward lunge animation
+          const lungeStart = performance.now();
+          const lungeDuration = 320;
+          const startPos = ghostGroup.position.clone();
+          const targetPos = new THREE.Vector3(
+            camera.position.x + dir.x * endDist,
+            0,
+            camera.position.z + dir.z * endDist
+          );
+
+          function animateLunge(now) {
+            const t = Math.min((now - lungeStart) / lungeDuration, 1);
+            const ease = 1 - Math.pow(1 - t, 3); // fast explosive ease-out
+            ghostGroup.position.lerpVectors(startPos, targetPos, ease);
+            if (t < 1) {
+              requestAnimationFrame(animateLunge);
+            }
+          }
+          requestAnimationFrame(animateLunge);
+
+          headlightL.intensity = 8;
+          headlightR.intensity = 8;
           triggerSubtleScare();
 
-          // Jumpscare stays active and intense for 3.5 seconds before ending screen overlays
+          // Jumpscare stays active and intense for 3.2 seconds before ending screen overlays
           setTimeout(() => {
             hud.showEnding("GHOSTED", "You should have listened.", true);
-          }, 3500);
+          }, 3200);
         } else if (choice === 'unknown') {
           gameState = 'ENDING_ESCAPED';
           player.disable();
